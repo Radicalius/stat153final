@@ -1,5 +1,5 @@
 ---
-title: "Forecasting Mediocre Social Network Apps Stock Price"
+title: "Forecasting MNSA Stock Price"
 author: "Zachary Cotton"
 date: "4/26/2020"
 output: 
