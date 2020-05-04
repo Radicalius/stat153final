@@ -1,0 +1,96 @@
+---
+title: "Forecasting Mediocre Social Network Apps Stock Price"
+author: "Zachary Cotton"
+date: "4/26/2020"
+output: 
+  html_document:
+    fig_caption: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Background
+
+Designing social network apps can be a lucrative business.  Some of the largest and most profitable companies in the world produce social network apps.  It is not surprising that many companies have formed to capitalize on this industry with varying degrees of success.  One such example is Mediocre Social Network Apps (MSNA).  MSNA has not been doing so well recently.  Its stock price, which has fallen steadily over the last 5 years, is shown in the following plot.  
+
+```{r, echo=FALSE, fig.align="center", fig.cap="Figure 1: Stock Price of Mediocre Social Media Apps from January 2015 to September 2019"}
+dat = read.csv("stocks.csv")
+plot(x=as.Date(dat$Date), y=dat$Price, main="Mediocre Social Network Apps Stock Price", ylab="Price ($)", xlab="Year", type="l")
+```
+
+\
+
+Some argue that one reason for this decline  is that MSNA has been experimenting with radical new ideas for social network models.  They say that even though their previous models have not been that popular, there's a chance that they might stumble on the next big thing.  As a result, it may be tempting to invest in MSNA in the hopes that the company's services become very popular in the future.  However, investing now could be risky if the stock price continues to decline.
+
+Though it is apparent that MSNA stock prices have fallen, it is not clear whether the stock price is following a linear or quadratic path.  If it is following a linear path, we would likely see more declines in the future.  On the other hand, we would expect the stock price to level out if it is following a quadratic trajectory.  The following plot shows these two possible trends.
+
+```{r echo=FALSE, fig.align="center", fig.cap="Figure 2: Quadratic and Linear trend Estimates for the Stock Price of MSNA"}
+d = 1:length(dat$Price)
+d2 = d^2
+mod1 = lm(dat$Price ~ d)
+mod2 = lm(dat$Price ~ d + d2)
+plot(x=as.Date(dat$Date), y=dat$Price, main="Mediocre Social Network Apps Stock Price Trajectories", ylab="Price ($)", xlab="Year", type="l")
+lines(x=as.Date(dat$Date), y=predict(mod1), col="red")
+lines(x=as.Date(dat$Date), y=predict(mod2), col="blue")
+legend(x=as.Date(dat$Date)[780], y=40, legend=c("Linear Trend", "Quadratic Trend"), col=c("red", "blue"), lty=c(1,1))
+```
+
+\
+
+Though the quadratic curve does appear to follow the data more closely than the linear curve, there is still a considerable amount of unexplained behavior in the data.  It may be the case that the particular circumstances that resulted in this data make the data appear like its leveling out when its actually declining linearly.  To more precisely estimate the trajectory, we turn to statistical modeling.
+
+### Modeling
+
+We built two models to test which trajectory is more likely.  The first (model 1) forecasts that the downward trend will continue while the second (model 2) predicts that the stock price will level out.  More technically, model 1 is based on the assumption that the data follows a random walk and model 2 assumes that the stock prices are following a quadratic trend with some autoregressive noise.  Below are the trajectories predicted by both models.
+
+```{r, echo=FALSE, fig.align="center", fig.cap="Figure 3: Predicted Estimates of MSNA Stock Price for the Next 100 Trading Days for each Model."}
+fit1 = function(data) {
+  return(mean(diff(data)))
+}
+
+error = function(data) {
+  return(sd(diff(data) - fit1(data)) / sqrt(length(data)))
+}
+
+predict1 = function(last_point, slope) {
+  return(last_point + slope*(1:30))
+}
+
+fit2 = function(data) {
+  d = 1:length(data)
+  d2 = d^2
+  mod = lm(data ~ d + d2)
+  mod_a = arima(mod$residuals, order=c(1,0,0))
+  return(list(mod=mod, mod_a=mod_a))
+}
+
+predict2 = function(lst,x) {
+  mod = lst$mod
+  mod_a = lst$mod_a
+  i = x:(x+29)
+  int = mod$coefficients[1]
+  d = mod$coefficients[2]
+  d2 = mod$coefficients[3]
+  #print(predict(mod_a, n.ahead=30)$pred)
+  return(predict(mod_a, n.ahead=30)$pred + (int*i^0 + d * i + d2 * i^2))
+}
+
+nd = seq.Date(from=as.Date(dat$Date)[1194], by="day", length.out = 30)
+plot(x=as.Date(dat$Date)[1100:1196], y=dat$Price[1100:1196], main="Mediocre Social Network Apps Stock Price Model Predictions", ylab="Price ($)", xlab="Month (2019)", type="l", xlim=c(as.Date(dat$Date)[1100], nd[length(nd)]))
+
+lines(x=nd, predict1(dat$Price[1194], fit1(dat$Price)), lty=3, col="red")
+lines(x=nd, predict2(fit2(dat$Price), 1195), lty=3, col="blue")
+legend(x=as.Date(dat$Date)[1185], y=23, legend=c("Model 1", "Model 2"), col=c("red", "blue"), lty=c(1,1))
+```
+
+\
+
+To get a sense of which model is more realistic, we ran some model fit tests.  Both models performed very similarly in sample.  That is, the errors of predictions made against points in the dataset were roughly the same for each model. The models were also evaluated for out-of-sample fit using cross validation (fitting the model on a range of the data and testing how well it predicts subsequent points).  In this test, model 1 performed better than model 2.  This means that model 1 will probably generalize better to future data, and therefore may be more suitable for forecasting.
+
+### Results and Conclusions
+
+Since model 1 appears to better represent the data than model 2, it is reasonable to conclude that the stock price trend will look more like the linear descent predicted by model 1 than the stabilization predicted by model 2.  That being said, there is a considerable amount of uncertainty with model 1's predictions.  In the short term we could see stabilization and even gains with reasonable probability.  In the long run however, it is much more likely that the price will be lower than it is today assuming the current trend continues.  As a result, investing in Mediocre Social Network Apps today would probably be risky.  Since there stock price seems to be continuing on the downward trend, you would probably lose money unless the company truly does happens upon something big.
+
+That is not to say that it is necessarily a bad idea to invest in MNSA.  Determining whether MNSA is a good investment requires other factors that we have not discussed.  For instance, one must consider how likely it is that one of MSNA's social networking models will become profitable, how long it will take them to discover a profitable model, and how profitable that model could actually be.  Deciding on how to evaluate these and other factors will take calculations and judgement calls which are beyond the scope of this article.  However, we hope that the forecasted trajectory of MNSA's stock price can provide some insight into the potential stakes of investing in MNSA if the status-quo continues.
